@@ -1,5 +1,10 @@
 package com.devsuperior.dsmovie.services;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -11,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -77,18 +83,23 @@ public class UserServiceTests {
 	@Test
 	public void loadUserByUsernameShouldReturnUserDetailsWhenUserExists() {
 
-		Mockito.when(userUtil.getLoggedUsername()).thenReturn(existingUsername);
+		List<UserDetailsProjection> projections = UserDetailsFactory.createCustomClientUser(existingUsername);
+        Mockito.when(repository.searchUserAndRolesByUsername(existingUsername)).thenReturn(projections);
 
-        UserEntity result = service.authenticated();
+        UserDetails result = service.loadUserByUsername(existingUsername);
 
         Assertions.assertNotNull(result);
         Assertions.assertEquals(existingUsername, result.getUsername());
+        Assertions.assertFalse(result.getAuthorities().isEmpty());
+        Assertions.assertEquals("ROLE_CLIENT", result.getAuthorities().iterator().next().getAuthority());
 	}
 
 	@Test
 	public void loadUserByUsernameShouldThrowUsernameNotFoundExceptionWhenUserDoesNotExists() {
 
-		Assertions.assertThrows(UsernameNotFoundException.class, () -> {
+		Mockito.when(repository.searchUserAndRolesByUsername(nonExistingUsername)).thenReturn(List.of());
+
+        Assertions.assertThrows(UsernameNotFoundException.class, () -> {
             service.loadUserByUsername(nonExistingUsername);
         });
 	}
